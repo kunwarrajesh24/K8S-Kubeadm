@@ -1,0 +1,46 @@
+We will deploy NGINX.
+
+Step 15. Create an NGINX Deployment
+On Master:
+kubectl create deployment nginx --image=nginx
+
+Check:
+kubectl get deployments
+
+kubectl get pods -o wide
+
+Explain how Kubernetes schedules the Pod on an available Worker node.
+Step 16. Scale the application
+kubectl scale deployment nginx --replicas=3
+
+Verify:
+kubectl get pods -o wide
+
+Students should observe where the three Pods are running.
+Step 17. Expose the application
+kubectl expose deployment nginx \
+--type=NodePort \
+--port=80
+
+Check:
+kubectl get svc
+
+Example:
+NAME    TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)
+nginx   NodePort   10.96.100.20    <none>        80:31234/TCP
+
+Now access:
+http://WORKER_PRIVATE_IP:31234
+
+For EC2, configure the Security Group to permit the required NodePort traffic from your authorized client IP.
+
+Step 18. Test scaling
+kubectl scale deployment nginx --replicas=5
+
+Verify:
+kubectl get pods -o wide
+
+Step 19. Delete application
+kubectl delete deployment nginx
+
+kubectl delete service nginx
