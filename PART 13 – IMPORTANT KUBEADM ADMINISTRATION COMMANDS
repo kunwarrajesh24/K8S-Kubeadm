@@ -1,0 +1,48 @@
+## Node management
+Check nodes
+kubectl get nodes
+
+##Describe a node
+kubectl describe node kube-worker1
+
+## Mark a node unschedulable
+kubectl cordon kube-worker1
+
+## Drain a node
+kubectl drain kube-worker1 --ignore-daemonsets
+
+## Allow scheduling again
+kubectl uncordon kube-worker1
+
+Understand the difference:
+Command	Purpose:
+1. cordon	Prevent new Pods from being scheduled
+2. drain	Evict eligible existing Pods and mark node unschedulable
+3. uncordon	Allow scheduling again
+
+
+11. Bootstrap token management
+Generate token:
+sudo kubeadm token create
+
+List tokens:
+sudo kubeadm token list
+
+Generate complete join command:
+sudo kubeadm token create --print-join-command
+
+12. Certificate management
+Kubernetes uses certificates for secure communication between components.
+
+Check certificate expiry:
+sudo kubeadm certs check-expiration
+
+Check certificate directory:
+sudo ls /etc/kubernetes/pki/
+
+Important certificates include:
+- ca.crt
+- apiserver.crt
+- apiserver-kubelet-client.crt
+- front-proxy-ca.crt
+- etcd/ca.crt
