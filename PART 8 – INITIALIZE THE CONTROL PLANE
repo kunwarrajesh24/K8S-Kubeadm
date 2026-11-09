@@ -1,0 +1,32 @@
+*Now we will work only on the Master machine.
+
+## Initialize the cluster
+First, identify the private IP:
+
+hostname -I
+Suppose the private IP is:
+172.31.10.10
+
+Run:
+sudo kubeadm init \
+--apiserver-advertise-address=172.31.10.10 \
+--pod-network-cidr=10.244.0.0/16
+
+Replace the IP with your Master private IP.
+
+What happens internally when we execute kubeadm init?
+Kubeadm performs several operations:
+1. Performs preflight checks.
+2. Generates Kubernetes certificates.
+3. Generates kubeconfig files.
+4. Creates etcd static Pod manifest.
+5. Creates API Server static Pod manifest.
+6. Creates Controller Manager static Pod manifest.
+7. Creates Scheduler static Pod manifest.
+8. Configures kubelet.
+9. Starts the Control Plane components.
+10. Creates bootstrap tokens.
+11. Configures CoreDNS.
+12. Configures kube-proxy.
+
+Official documentation explains the complete initialization process and its phases. Kubernetes
