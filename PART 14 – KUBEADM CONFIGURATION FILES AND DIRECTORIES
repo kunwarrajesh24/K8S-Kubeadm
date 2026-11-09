@@ -10,3 +10,12 @@
 /opt/cni/bin/	--- CNI plugin binaries
 /var/lib/etcd/	---- Local etcd data
 /var/log/	---- System logs
+
+Execute:
+sudo ls -l /etc/kubernetes/manifests/
+
+Output:
+etcd.yaml
+kube-apiserver.yaml
+kube-controller-manager.yaml
+kube-scheduler.yaml
