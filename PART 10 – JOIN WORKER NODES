@@ -1,0 +1,6 @@
+What is kubeadm join?
+kubeadm join is used to register another machine with an existing Kubernetes cluster.
+
+We have initialized our Master.
+
+Now we need to add Worker nodes.
