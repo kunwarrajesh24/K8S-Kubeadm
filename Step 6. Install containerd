@@ -1,0 +1,29 @@
+## Run on all three machines:
+sudo apt install -y containerd
+
+## Create configuration directory:
+sudo mkdir -p /etc/containerd
+
+##Generate default configuration:
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+
+Now configure SystemdCgroup.
+Open:
+sudo nano /etc/containerd/config.toml
+
+Find:
+SystemdCgroup = false
+
+Change it to:
+SystemdCgroup = true
+
+Also ensure the CRI plugin is not disabled in the configuration.
+
+## Restart containerd:
+sudo systemctl restart containerd
+
+## Enable containerd:
+sudo systemctl enable containerd
+
+Verify:
+sudo systemctl status containerd
