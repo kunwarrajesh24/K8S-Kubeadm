@@ -1,0 +1,717 @@
+1. Understand how Kubeadm works internally.
+2. Explain Kubernetes cluster architecture.
+3. Install Kubernetes on Ubuntu servers.
+4. Configure a Control Plane node.
+5. Join Worker nodes to a cluster.
+6. Configure containerd and CNI networking.
+7. Deploy and expose applications.
+8. Scale applications.
+9. Manage nodes and troubleshoot cluster problems.
+10. Understand cluster upgrades, certificates, tokens & deletion.
+
+# PART 1 – UNDERSTANDING KUBEADM
+## What is Kubeadm?
+ We know how to create a Kubernetes cluster using Minikube. But how do organizations create Kubernetes clusters on multiple Linux servers?
+Kubeadm is a Kubernetes command-line tool used to initialize and configure a Kubernetes cluster.
+It provides a standard way of creating a Kubernetes cluster using two important commands:
+
+- `kubeadm init
+- `kubeadm join
+
+Kubeadm helps us bootstrap a production-style Kubernetes cluster.
+
+### 2. Why do we need Kubeadm?
+
+Consider a scenario.
+
+An organization wants to deploy an application using Kubernetes.
+
+It has three Ubuntu servers:
+
+| Server   |  Purpose      |
+| Server 1 | Control Plane |
+| Server 2 | Worker Node 1 |
+| Server 3 | Worker Node 2 |
+
+We need to:
+- Install Kubernetes components.
+- Configure the container runtime.
+- Initialize the Control Plane.
+- Configure networking.
+- Join Worker nodes.
+- Deploy applications.
+
+Our project will be:
+
+## Project: Build a Kubernetes Cluster Using Kubeadm
+
+                 ADMINISTRATOR
+                       |
+                       |
+                    kubectl
+                       |
+                       |
+              CONTROL PLANE NODE
+                  (Master)
+                       |
+        --------------------------------
+        |              |               |
+    API Server       etcd         Scheduler
+                       |
+                 Controller Manager
+                       |
+        --------------------------------
+                       |
+                    KUBELET
+                       |
+          -------------------------
+          |                       |
+      WORKER NODE 1          WORKER NODE 2
+          |                       |
+      containerd              containerd
+          |                       |
+        Pods                    Pods
+
+### Step 1. Create three Ubuntu instances
+
+Create:
+
+- kube-master
+- kube-worker1
+- kube-worker2
+
+Connect to all three machines through SSH.
+
+### Step 2. Configure all three machines
+
+Run these commands on every machine.
+sudo apt update
+sudo apt upgrade -y
+
+## Set hostnames ##
+
+On Master:
+sudo hostnamectl set-hostname kube-master
+
+On Worker 1:
+sudo hostnamectl set-hostname kube-worker1
+
+On Worker 2:
+sudo hostnamectl set-hostname kube-worker2
+Reconnect to the machines.
+
+Verify:
+hostname
+
+### Step 3. Configure hosts file
+
+On all three machines:
+sudo nano /etc/hosts
+
+Add the actual private IP addresses:
+172.31.10.10 kube-master
+172.31.10.11 kube-worker1
+172.31.10.12 kube-worker2
+Replace these sample IPs with your actual private IPs.
+
+Verify:
+ping -c 3 kube-master
+ping -c 3 kube-worker1
+ping -c 3 kube-worker2
+
+### Step 4. Disable swap
+
+Explain first:
+What is Swap?
+Swap is disk space used as an extension of RAM.
+For our standard Kubeadm configuration, we will disable swap.
+Run on all three machines:
+sudo swapoff -a
+
+Make it persistent:
+sudo sed -i '/ swap / s/^/#/' /etc/fstab
+
+Verify:
+free -h
+
+### Step 5. Configure kernel modules
+
+Run on all three machines:
+sudo modprobe overlay
+sudo modprobe br_netfilter
+
+Make the configuration persistent:
+
+sudo tee /etc/modules-load.d/k8s.conf <<EOF
+overlay
+br_netfilter
+EOF
+
+Configure networking:
+
+sudo tee /etc/sysctl.d/k8s.conf <<EOF
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1
+EOF
+
+Apply:
+sudo sysctl --system
+
+Verify:
+lsmod | grep br_netfilter
+
+And:
+sysctl net.ipv4.ip_forward
+
+Expected:
+net.ipv4.ip_forward = 1
+
+### Step 6. Install containerd
+Run on all three machines:
+
+sudo apt install -y containerd
+
+Create configuration directory:
+sudo mkdir -p /etc/containerd
+
+Generate default configuration:
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+
+Now configure SystemdCgroup.
+Open:
+sudo nano /etc/containerd/config.toml
+
+Find:
+SystemdCgroup = false
+
+Change it to:
+SystemdCgroup = true
+
+Also ensure the CRI plugin is not disabled in the configuration.
+
+Restart containerd:
+sudo systemctl restart containerd
+
+Enable containerd:
+sudo systemctl enable containerd
+
+Verify:
+sudo systemctl status containerd
+
+## Why SystemdCgroup?
+Linux uses control groups (cgroups) to manage resource allocation.
+Kubernetes and the container runtime should use compatible cgroup management.
+Using the systemd cgroup driver.
+
+# PART 7 – INSTALL KUBEADM, KUBELET AND KUBECTL
+This step is performed on all three machines.
+
+### Step 7. Install required packages
+sudo apt install -y apt-transport-https ca-certificates curl gpg
+
+Create keyring directory:
+sudo mkdir -p -m 755 /etc/apt/keyrings
+
+Download the Kubernetes signing key:
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.37/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+Add Kubernetes repository:
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.37/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+Update:
+sudo apt update
+
+Install:
+sudo apt install -y kubelet kubeadm kubectl
+
+Hold packages:
+sudo apt-mark hold kubelet kubeadm kubectl
+
+Enable kubelet:
+sudo systemctl enable kubelet
+
+Check versions:
+kubeadm version
+kubectl version --client
+kubelet --version
+Important: kubelet may repeatedly restart before the cluster is initialized. This is expected in a fresh Kubeadm setup.
+
+# PART 8 – INITIALIZE THE CONTROL PLANE
+Now we will work only on the Master machine.
+
+### Step 8. Initialize the cluster
+First, identify the private IP:
+hostname -I
+
+Suppose the private IP is:
+172.31.10.10
+Run:
+sudo kubeadm init --apiserver-advertise-address=172.31.10.10 --pod-network-cidr=10.244.0.0/16
+
+Replace the IP with your Master private IP.
+
+### What happens internally when we execute kubeadm init?
+Kubeadm performs several operations:
+
+1. Performs preflight checks.
+2. Generates Kubernetes certificates.
+3. Generates kubeconfig files.
+4. Creates etcd static Pod manifest.
+5. Creates API Server static Pod manifest.
+6. Creates Controller Manager static Pod manifest.
+7. Creates Scheduler static Pod manifest.
+8. Configures kubelet.
+9. Starts the Control Plane components.
+10. Creates bootstrap tokens.
+11. Configures CoreDNS.
+12. Configures kube-proxy.
+
+Note: Control Plane components are initially deployed as Static Pods.
+
+Kubelet watches:
+/etc/kubernetes/manifests/
+
+### Step 9. Configure kubectl
+
+After successful initialization, run:
+mkdir -p $HOME/.kube
+
+Copy the admin configuration:
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+
+Change ownership:
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Verify:
+kubectl get nodes
+
+Initially, the Master may show:
+NAME          STATUS     ROLES           AGE
+kube-master   NotReady   control-plane   2m
+
+## Why is the Master NotReady?
+Because we have not installed the CNI network plugin yet.
+This is an important conceptual connection.
+
+# PART 9 – INSTALL CNI NETWORKING
+## 8. What is CNI?
+CNI stands for Container Network Interface. It provides the networking infrastructure required for Pods to communicate. Without a functioning CNI plugin, Pods will not have the required network connectivity.
+
+There are several CNI solutions:
+
+| CNI | Description |
+| Flannel | Simple Pod networking |
+| Calico | Networking and network policies |
+| Cilium | eBPF-based networking and security |
+| Weave Net | Legacy networking solution |
+
+We will use Flannel because it is relatively straightforward.
+
+### Step 10. Install Flannel
+We initialized our cluster with:
+--pod-network-cidr=10.244.0.0/16
+Flannel's default network configuration uses the same CIDR.
+
+Run on Master:
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+Check:
+kubectl get pods -n kube-flannel
+
+Check nodes:
+kubectl get nodes
+Expected:
+NAME          STATUS   ROLES           AGE
+kube-master   Ready    control-plane   10m
+
+The Master should now become Ready once networking is functioning.
+
+# PART 10 – JOIN WORKER NODES
+This is where students understand the real meaning of `kubeadm join`.
+
+## 9. What is kubeadm join?
+`kubeadm join` is used to register another machine with an existing Kubernetes cluster.
+
+We have initialized our Master.
+Now we need to add Worker nodes.
+
+### Step 11. Generate the join command
+Run on the master:
+kubeadm token create --print-join-command
+
+It generates a command similar to:
+sudo kubeadm join 172.31.10.10:6443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:xxxxxxxx
+
+Our actual token and certificate hash will be different.
+Copy the complete command.
+
+### Step 12. Join Worker 1
+Connect to Worker 1.
+Execute the generated command:
+
+sudo kubeadm join 172.31.10.10:6443 --token YOUR_TOKEN --discovery-token-ca-cert-hash sha256:YOUR_HASH
+
+### Step 13. Join Worker 2
+Connect to Worker 2.
+Execute the same generated join command, provided the token is still valid.
+
+### Step 14. Verify the cluster
+Go back to Master:
+kubectl get nodes
+Expected:
+NAME          STATUS   ROLES           AGE
+kube-master   Ready    control-plane   20m
+kube-worker1  Ready    <none>          5m
+kube-worker2  Ready    <none>          3m
+
+Explain:
+
+- Master manages the cluster.
+- Worker nodes run applications.
+- kubelet runs on every node.
+- containerd runs containers.
+- CNI provides Pod networking.
+
+Now, We have successfully created a multi-node Kubernetes cluster using Kubeadm.
+# PART 11 – VERIFY THE CLUSTER INTERNALLY
+## inspect the cluster.
+
+### 1. Check nodes
+kubectl get nodes -o wide
+
+### 2. Check namespaces
+kubectl get namespaces
+
+### 3. Check system Pods
+kubectl get pods -n kube-system
+
+### 4. Check all Pods
+kubectl get pods -A
+
+### 5. Check cluster information
+kubectl cluster-info
+
+### 6. Check component details
+kubectl describe node kube-master
+
+### 7. Check services
+kubectl get services -A
+
+### 8. Check kubelet
+
+On each node:
+sudo systemctl status kubelet
+
+### 9. Check containerd
+sudo systemctl status containerd
+
+### 10. Check container information
+sudo crictl info
+
+We may need to configure crictl's runtime endpoint if it cannot automatically identify containerd.
+Step 1. Understand the concept
+crictl stands for Container Runtime Interface CLI.
+
+It is a command-line utility used to inspect and troubleshoot containers and Pods managed by a Kubernetes-compatible container runtime.
+
+Our architecture:
+        Kubernetes
+             |
+          kubelet
+             |
+       CRI Interface
+             |
+         containerd
+             |
+       Linux Containers
+
+crictl allows us to inspect the runtime directly.
+Step 2. Identify the containerd socket
+On each machine, execute:
+sudo ls -l /run/containerd/containerd.sock
+
+Expected:
+/run/containerd/containerd.sock
+
+This is the Unix socket through which clients communicate with containerd.
+
+Step 3. Configure crictl
+Execute:
+sudo crictl config --set runtime-endpoint=unix:///run/containerd/containerd.sock --set image-endpoint=unix:///run/containerd/containerd.sock
+
+This creates or updates:
+/etc/crictl.yaml
+
+Step 4. Verify configuration
+cat /etc/crictl.yaml
+
+Expected:
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 2
+debug: false
+
+Step 5. Test containerd connectivity
+Execute:
+sudo crictl info
+
+If everything is configured correctly, you should receive runtime information in JSON format.
+Step 6. Check containers
+sudo crictl ps
+
+To see all containers, including stopped containers:
+sudo crictl ps -a
+
+Step 7. Check downloaded images
+sudo crictl images
+
+Step 8. Check the containerd service
+sudo systemctl status containerd
+
+If it is not running:
+sudo systemctl restart containerd
+
+# PART 12 – DEPLOY APPLICATIONS ON KUBEADM
+We will deploy NGINX.
+
+### Step 15. Create an NGINX Deployment
+On Master:
+kubectl create deployment nginx --image=nginx
+
+Check:
+kubectl get deployments
+kubectl get pods -o wide
+
+### Step 16. Scale the application
+kubectl scale deployment nginx --replicas=3
+
+Verify:
+kubectl get pods -o wide
+
+### Step 17. Expose the application
+kubectl expose deployment nginx --type=NodePort --port=80
+
+Check:
+kubectl get svc
+
+Example:
+NAME    TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)
+nginx   NodePort   10.96.100.20    <none>        80:31234/TCP
+
+Now access:
+http://WORKER_PRIVATE_IP:31234
+For EC2, configure the Security Group to permit the required NodePort traffic from your authorized client IP.
+
+### Step 18. Test scaling
+kubectl scale deployment nginx --replicas=5
+Verify:
+kubectl get pods -o wide
+
+### Step 19. Delete application
+kubectl delete deployment nginx
+kubectl delete service nginx
+
+# PART 13 – IMPORTANT KUBEADM ADMINISTRATION COMMANDS
+
+Do not stop after cluster creation.
+
+## 10. Node management
+## Check nodes
+kubectl get nodes
+
+## Describe a node
+kubectl describe node kube-worker1
+
+## Mark a node unschedulable
+kubectl cordon kube-worker1
+
+## Drain a node
+kubectl drain kube-worker1 --ignore-daemonsets
+
+Note: This may require additional flags depending on local storage and workload configuration. It also evicts eligible Pods.
+
+## Allow scheduling again
+kubectl uncordon kube-worker1
+
+Explain the difference:
+cordon ----  Prevent new Pods from being scheduled 
+ drain --- Evict eligible existing Pods and mark node unschedulable 
+ uncordon --- Allow scheduling again 
+
+## 11. Bootstrap token management
+
+Generate token:
+sudo kubeadm token create
+
+List tokens:
+sudo kubeadm token list
+
+Generate complete join command:
+sudo kubeadm token create --print-join-command
+
+## 12. Certificate management
+Kubernetes uses certificates for secure communication between components.
+
+Check certificate expiry:
+sudo kubeadm certs check-expiration
+
+Check certificate directory:
+sudo ls /etc/kubernetes/pki/
+
+Important certificates include:
+- ca.crt
+- apiserver.crt
+- apiserver-kubelet-client.crt
+- front-proxy-ca.crt
+- etcd/ca.crt
+
+Ewhy certificates matter:
+
+They provide authentication and secure communication between Kubernetes components.
+
+# PART 14 – KUBEADM CONFIGURATION FILES AND DIRECTORIES
+
+Students should understand the important directories.
+
+## Purpose of Directory/File
+| /etc/kubernetes/` --- Kubernetes configuration 
+| /etc/kubernetes/manifests/` --- Static Pod manifests 
+| /etc/kubernetes/pki/` ----Certificates and keys 
+| /etc/kubernetes/admin.conf` ---- Administrator kubeconfig 
+| /var/lib/kubelet/` ---- Kubelet state and configuration 
+| /etc/containerd/` ---- Containerd configuration 
+| /etc/cni/net.d/` --- CNI configuration 
+| /opt/cni/bin/` ---- CNI plugin binaries 
+| /var/lib/etcd/` ----  Local etcd data 
+| /var/log/` ---- System logs 
+
+### Important practical
+Execute:
+sudo ls -l /etc/kubernetes/manifests/
+
+Output:
+etcd.yaml
+kube-apiserver.yaml
+kube-controller-manager.yaml
+kube-scheduler.yaml
+
+Why these files matter:
+
+Because kubelet monitors this directory and manages the Static Pods described by these manifests.
+
+# PART 15 – UNDERSTANDING STATIC PODS
+
+A Static Pod is a Pod managed directly by the kubelet on a particular node. Unlike normal Pods, Static Pods are not created through the API Server in the usual way.
+Kubeadm uses Static Pods to run the main Control Plane components.
+
+Example:
+/etc/kubernetes/manifests/
+
+If we inspect:
+sudo cat /etc/kubernetes/manifests/kube-apiserver.yaml
+Now, we will find the configuration used to run the API Server.
+
+## What happens if the API Server goes down?
+The kubelet can continue managing the local Control Plane Static Pods, but normal API operations and cluster management will be disrupted. This demonstrates why the kubelet and Static Pods are important.
+
+# PART 16 – KUBEADM TROUBLESHOOTING
+### Important troubleshooting commands
+##Check kubelet logs
+sudo journalctl -u kubelet -f
+
+##Check containerd logs
+sudo journalctl -u containerd -f
+
+## Check running containers**
+sudo crictl ps -a
+
+## Check running Pods
+kubectl get pods -A
+
+## Inspect a Pod
+kubectl describe pod POD_NAME
+
+##View application logs
+kubectl logs POD_NAME
+
+##Check node conditions
+kubectl describe node NODE_NAME
+
+##Check API Server connectivity
+nc -zv MASTER_PRIVATE_IP 6443
+
+# PART 17 – KUBEADM RESET AND CLUSTER DELETION
+How to remove a Kubeadm configuration. This is useful when a cluster initialization fails or when we want to repeat the practical.
+
+### Step 1. Remove Worker nodes from Master
+On Master:
+kubectl drain kube-worker1 --ignore-daemonsets --delete-emptydir-data
+kubectl delete node kube-worker1
+
+Repeat for Worker 2.
+### Step 2. Reset Worker 1
+
+On Worker 1:
+sudo kubeadm reset -f
+
+### Step 3. Reset Worker 2
+On Worker 2:
+sudo kubeadm reset -f
+
+### Step 4. Reset Master
+
+On Master:
+sudo kubeadm reset -f
+
+### Step 5. Clean up CNI configuration
+
+On all machines:
+sudo rm -rf /etc/cni/net.d
+
+Depending on your CNI and runtime configuration, additional cleanup may be required.
+### Step 6. Remove kubeconfig
+On Master:
+rm -rf $HOME/.kube
+
+# PART 18 – ADVANCED KUBEADM CONCEPTS
+## 13. Single Control Plane vs High Availability
+### Single Control Plane Architecture
+
+          CONTROL PLANE
+                |
+       -------------------
+       |                 |
+    Worker 1          Worker 2
+
+If the Control Plane fails, cluster management becomes unavailable. Existing workloads may continue running, depending on the failure.
+
+### High Availability Architecture
+A highly available cluster typically contains:
+- Multiple Control Plane nodes.
+- A load balancer for the Kubernetes API.
+- Multiple Worker nodes.
+- Highly available etcd.
+
+Two major architectures:
+##A. Stacked etcd topology
+Each Control Plane node also runs an etcd member.
+
+##B. External etcd topology
+etcd runs on separate dedicated machines.
+
+## 14. Kubeadm Upgrade
+Kubernetes clusters need regular upgrades.
+Explain the typical upgrade sequence:
+
+1. Check the current Kubernetes version.
+2. Review version-skew policies.
+3. Back up etcd.
+4. Upgrade the first Control Plane node.
+5. Upgrade additional Control Plane nodes, if applicable.
+6. Upgrade Worker nodes.
+7. Verify cluster health.
+
+## Useful commands:
+kubectl version
+kubeadm version
+kubectl get nodes
