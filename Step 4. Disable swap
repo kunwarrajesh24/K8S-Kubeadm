@@ -1,0 +1,12 @@
+What is Swap?
+Swap is disk space used as an extension of RAM.
+For our standard Kubeadm configuration, we will disable swap.
+
+## Run on all three machines:
+sudo swapoff -a
+
+## Make it persistent:
+sudo sed -i '/ swap / s/^/#/' /etc/fstab
+
+## Verify:
+free -h
