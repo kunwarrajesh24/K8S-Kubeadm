@@ -1,0 +1,33 @@
+This step is performed on all three machines.
+We will use Kubernetes v1.37 for the example below. The Kubernetes package repository is version-specific, so use the official installation instructions for your chosen version.
+
+### Install required packages
+sudo apt install -y apt-transport-https ca-certificates curl gpg
+
+##Create keyring directory:
+sudo mkdir -p -m 755 /etc/apt/keyrings
+
+## Download the Kubernetes signing key:
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.37/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+## Add Kubernetes repository:
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.37/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+Update:
+sudo apt update
+
+Install:
+sudo apt install -y kubelet kubeadm kubectl
+
+Hold packages:
+sudo apt-mark hold kubelet kubeadm kubectl
+
+Enable kubelet:
+sudo systemctl enable kubelet
+
+Check versions:
+kubeadm version
+
+kubectl version --client
+
+kubelet --version
