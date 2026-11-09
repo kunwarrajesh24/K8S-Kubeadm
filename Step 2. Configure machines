@@ -1,0 +1,23 @@
+###  Configure all three machines
+
+Run these commands on every machine.
+
+##Update packages
+sudo apt update
+sudo apt upgrade -y
+
+Set hostnames
+
+On Master:
+sudo hostnamectl set-hostname kube-master
+
+On Worker 1:
+sudo hostnamectl set-hostname kube-worker1
+
+On Worker 2:
+sudo hostnamectl set-hostname kube-worker2
+
+Reconnect to the machines.
+
+Verify:
+hostname
