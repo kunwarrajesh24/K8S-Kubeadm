@@ -1,0 +1,16 @@
+What is CNI?
+CNI stands for Container Network Interface.
+
+It provides the networking infrastructure required for Pods to communicate.
+
+Without a functioning CNI plugin, Pods will not have the required network connectivity.
+
+There are several CNI solutions:
+CNI	Description
+Flannel	Simple Pod networking
+Calico	Networking and network policies
+Cilium	eBPF-based networking and security
+Weave Net	Legacy networking solution
+
+
+We are using Flannel for our practical
