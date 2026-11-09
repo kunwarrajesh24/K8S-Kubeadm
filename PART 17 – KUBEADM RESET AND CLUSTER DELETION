@@ -1,0 +1,27 @@
+Step 1. Remove Worker nodes from Master
+On Master:
+kubectl drain kube-worker1 --ignore-daemonsets --delete-emptydir-data
+
+kubectl delete node kube-worker1
+
+Repeat for Worker 2.
+Step 2. Reset Worker 1
+On Worker 1:
+sudo kubeadm reset -f
+
+Step 3. Reset Worker 2
+On Worker 2:
+sudo kubeadm reset -f
+
+Step 4. Reset Master
+On Master:
+sudo kubeadm reset -f
+
+Step 5. Clean up CNI configuration
+On all machines:
+sudo rm -rf /etc/cni/net.d
+
+Depending on your CNI and runtime configuration, additional cleanup may be required.
+Step 6. Remove kubeconfig
+On Master:
+rm -rf $HOME/.kube
