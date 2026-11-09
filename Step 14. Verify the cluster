@@ -1,0 +1,50 @@
+## On Master:
+kubectl get nodes
+
+Expected:
+NAME          STATUS   ROLES           AGE
+kube-master   Ready    control-plane   20m
+kube-worker1  Ready    <none>          5m
+kube-worker2  Ready    <none>          3m
+
+Now:
+- Master manages the cluster.
+- Worker nodes run applications.
+- kubelet runs on every node.
+- containerd runs containers.
+- CNI provides Pod networking.
+
+Congratulations! We have successfully created a multi-node Kubernetes cluster using Kubeadm.
+
+## VERIFY THE CLUSTER INTERNALLY
+Now inspect the cluster.
+1. Check nodes
+kubectl get nodes -o wide
+
+2. Check namespaces
+kubectl get namespaces
+
+3. Check system Pods
+kubectl get pods -n kube-system
+
+4. Check all Pods
+kubectl get pods -A
+
+5. Check cluster information
+kubectl cluster-info
+
+6. Check component details
+kubectl describe node kube-master
+
+7. Check services
+kubectl get services -A
+
+8. Check kubelet
+On each node:
+sudo systemctl status kubelet
+
+9. Check containerd
+sudo systemctl status containerd
+
+10. Check container information
+sudo crictl info
