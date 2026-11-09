@@ -1,0 +1,14 @@
+On all three machines:
+sudo nano /etc/hosts
+
+Add the actual private IP addresses:
+172.31.10.10 kube-master
+172.31.10.11 kube-worker1
+172.31.10.12 kube-worker2
+
+Replace these sample IPs with your actual private IPs.
+
+Verify:
+ping -c 3 kube-master
+ping -c 3 kube-worker1
+ping -c 3 kube-worker2
