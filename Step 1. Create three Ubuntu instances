@@ -1,0 +1,6 @@
+Create:
+- kube-master
+- kube-worker1
+- kube-worker2
+
+Note: Connect to all three machines through SSH
