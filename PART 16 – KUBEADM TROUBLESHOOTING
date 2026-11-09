@@ -1,0 +1,36 @@
+| Problem | Possible reason | Solution |
+| Node NotReady | CNI not installed | Install CNI |
+| kubeadm init fails | Swap enabled | Disable swap or configure supported swap behavior |
+| containerd not running | Configuration issue | Check containerd logs |
+| Worker cannot join | Network connectivity issue | Verify private IP and ports |
+| Connection refused 6443 | API Server unavailable | Check Control Plane |
+| CoreDNS Pending | CNI unavailable | Verify CNI |
+| ImagePullBackOff | Image pull issue | Check image name and network |
+| CrashLoopBackOff | Application issue | Inspect logs |
+| kubelet restarting | Initialization incomplete or configuration issue | Check kubelet logs |
+| Worker NotReady | Runtime or networking issue | Inspect kubelet and CNI |
+
+Important troubleshooting commands
+Check kubelet logs
+sudo journalctl -u kubelet -f
+
+Check containerd logs
+sudo journalctl -u containerd -f
+
+Check running containers
+sudo crictl ps -a
+
+Check running Pods
+kubectl get pods -A
+
+Inspect a Pod
+kubectl describe pod POD_NAME
+
+View application logs
+kubectl logs POD_NAME
+
+Check node conditions
+kubectl describe node NODE_NAME
+
+Check API Server connectivity
+nc -zv MASTER_PRIVATE_IP 6443
