@@ -1,0 +1,12 @@
+## Purpose of Directory/File
+
+/etc/kubernetes/   ----- Kubernetes configuration
+/etc/kubernetes/manifests/ ----- 	Static Pod manifests
+/etc/kubernetes/pki/ ------ Certificates and keys
+/etc/kubernetes/admin.conf ---- Administrator kubeconfig
+/var/lib/kubelet/	---- Kubelet state and configuration
+/etc/containerd/	----- Containerd configuration
+/etc/cni/net.d/	----- CNI configuration
+/opt/cni/bin/	--- CNI plugin binaries
+/var/lib/etcd/	---- Local etcd data
+/var/log/	---- System logs
