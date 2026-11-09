@@ -1,0 +1,18 @@
+## After successful initialization, run:
+mkdir -p $HOME/.kube
+
+## Copy the admin configuration:
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+
+## Change ownership:
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Verify:
+kubectl get nodes
+
+## Initially, the Master may show:
+NAME          STATUS     ROLES           AGE
+kube-master   NotReady   control-plane   2m
+
+Now, why is the Master NotReady?
+Because we have not installed the CNI network plugin yet.
