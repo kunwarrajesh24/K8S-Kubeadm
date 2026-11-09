@@ -1,0 +1,19 @@
+## We initialized our cluster with:
+--pod-network-cidr=10.244.0.0/16
+
+## Flannel's default network configuration uses the same CIDR.
+
+## Run on Master:
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+Check:
+kubectl get pods -n kube-flannel
+
+Check nodes:
+kubectl get nodes
+
+Expected:
+NAME          STATUS   ROLES           AGE
+kube-master   Ready    control-plane   10m
+
+The Master should now become Ready once networking is functioning.
