@@ -1,0 +1,10 @@
+A Static Pod is a Pod managed directly by the kubelet on a particular node.
+Unlike normal Pods, Static Pods are not created through the API Server in the usual way.
+Kubeadm uses Static Pods to run the main Control Plane components.
+
+Example:
+/etc/kubernetes/manifests/
+
+If we inspect:
+sudo cat /etc/kubernetes/manifests/kube-apiserver.yaml
+
